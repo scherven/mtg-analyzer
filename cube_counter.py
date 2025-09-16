@@ -106,11 +106,7 @@ def _():
 
     def count_total(cube_dfs, header, per):
         return round(sum(count_total_helper(i, header, per) for i in cube_dfs) / len(cube_dfs), 2)
-    return (count_total,)
 
-
-@app.cell
-def _():
     def count_category_helper(cube_df, category, header, mv, condense, per):
         filtered = filter_df(cube_df, header)
         filtered = filtered[filtered.type_line.str.contains(category[1:], na=False)]
@@ -125,11 +121,40 @@ def _():
 
     def count_category(cube_dfs, category, header, mv, condense, per):
         return round(sum(count_category_helper(i, category, header, mv, condense, per) for i in cube_dfs) / len(cube_dfs), 2)
-    return (count_category,)
+    return count_category, count_total
 
 
 @app.cell
-def _(count_category, count_total, load_df, os, tb):
+def _(count_category, count_total, tb):
+    def display_averages(cube_dfs, per):
+        headers = [per, "W", "U", "B", "R", "G", "C", "M", "L"]
+        categories = ["creature", "planeswalker", "instant", "sorcery", "artifact", "enchantment"]
+        condense = [8, 0, 4, 4, 4, 4]
+    
+        rows = []
+    
+        def make_row(label, fn):
+            return [label] + [fn(i) for i in headers[1:]]
+    
+        # total
+        rows.append(make_row("total", lambda i: count_total(cube_dfs, i, per)))
+    
+        # categories
+        for category, limit in zip(categories, condense):
+            rows.append(make_row(category, lambda i: count_category(cube_dfs, category, i, 0, True, per)))
+    
+            for i in range(limit):
+                rows.append(make_row(f"{category} ({i})", lambda j: count_category(cube_dfs, category, j, i, False, per)))
+    
+            if limit != 0:
+                rows.append(make_row(f"{category} ({limit})+", lambda i: count_category(cube_dfs, category, i, limit, True, per)))
+    
+        print(tb.tabulate(rows, headers, tablefmt="outline"))
+    return (display_averages,)
+
+
+@app.cell
+def _(display_averages, load_df, os):
     # def display_averages(cube_dfs, per=100)
 
     cube_dfs = []
@@ -139,34 +164,13 @@ def _(count_category, count_total, load_df, os, tb):
 
     per = 540
 
-    headers = [per, "W", "U", "B", "R", "G", "C", "M", "L"]
-    categories = ["creature", "planeswalker", "instant", "sorcery", "artifact", "enchantment"]
-    condense = [8, 0, 4, 4, 4, 4]
-
-    rows = []
-
-    def make_row(label, fn):
-        return [label] + [fn(i) for i in headers[1:]]
-
-    # total
-    rows.append(make_row("total", lambda i: count_total(cube_dfs, i, per)))
-
-    # categories
-    for category, limit in zip(categories, condense):
-        rows.append(make_row(category, lambda i: count_category(cube_dfs, category, i, 0, True, per)))
-
-        for i in range(limit):
-            rows.append(make_row(f"{category} ({i})", lambda j: count_category(cube_dfs, category, j, i, False, per)))
-
-        if limit != 0:
-            rows.append(make_row(f"{category} ({limit})+", lambda i: count_category(cube_dfs, category, i, limit, True, per)))
-
-    print(tb.tabulate(rows, headers, tablefmt="outline"))
+    display_averages(cube_dfs, per)
     return
 
 
 @app.cell
-def _():
+def _(display_averages, load_df):
+    display_averages([load_df('simonscube (9).txt')], 541)
     return
 
 
