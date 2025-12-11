@@ -24,6 +24,28 @@ def _(json, pd, requests):
 
 
 @app.cell
+def _(full_scryfall_df):
+    basic_lands = full_scryfall_df[
+        (full_scryfall_df['type_line'].str.contains('Basic Land', case=False, na=False)) &
+        (full_scryfall_df['released_at'] >= '2008-10-03') &  # Shards of Alara release date
+        (full_scryfall_df['released_at'] <= '2017-07-14')  # Hour of Devastation release date
+    ]
+
+    basic_lands
+    # First filter for sets that were standard-legal when printed
+    standard_sets = ['expansion']
+
+    basic_lands_standard = basic_lands[
+        basic_lands['set_type'].isin(standard_sets)
+    ]
+
+    # Then print the results
+    for _, row in basic_lands_standard.iterrows():
+        print(f"{row['name']} ({row['set'].upper()}) {row['collector_number']}")
+    return
+
+
+@app.cell
 def _(full_scryfall_df, json, requests):
     df = full_scryfall_df[['name',                       # the name of the card - not technically necessary but helpful for debugging
                            'mana_cost',                  # what type of mana the card costs to summon
