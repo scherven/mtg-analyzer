@@ -71,9 +71,9 @@ def _(df):
             df['name'].isin(cards) |
             df['name'].str.split('//').str[0].str.strip().isin(cards)  
         )
-    
+
         cube_df = df[condition]
-    
+
         for index, row in cube_df.iterrows():
             card_faces = row['card_faces']
             if isinstance(card_faces, list):
@@ -87,7 +87,7 @@ def _(df):
 @app.function
 def filter_df(cube_df, header):
     land_mask = cube_df.type_line.str.contains('Land') & ~cube_df.type_line.str.contains('//', na=False)
-    
+
     if header in "WUBRG":
         return cube_df[cube_df.colors.apply(lambda x: x == [header])]
     elif header == "C":
@@ -116,8 +116,12 @@ def _():
         else:
             filtered = filtered[filtered.cmc == mv]
 
-        return len(filtered) * (per / len(cube_df))
-    
+        n = len(filtered)
+        if category == "artifact" and header == "C":
+            n -= count_category_helper(cube_df, "creature", "C", mv, condense, len(cube_df))
+
+        return n * (per / len(cube_df))
+
 
     def count_category(cube_dfs, category, header, mv, condense, per):
         return round(sum(count_category_helper(i, category, header, mv, condense, per) for i in cube_dfs) / len(cube_dfs), 2)
@@ -130,25 +134,25 @@ def _(count_category, count_total, tb):
         headers = [per, "W", "U", "B", "R", "G", "C", "M", "L"]
         categories = ["creature", "planeswalker", "instant", "sorcery", "artifact", "enchantment"]
         condense = [8, 0, 4, 4, 4, 4]
-    
+
         rows = []
-    
+
         def make_row(label, fn):
             return [label] + [fn(i) for i in headers[1:]]
-    
+
         # total
         rows.append(make_row("total", lambda i: count_total(cube_dfs, i, per)))
-    
+
         # categories
         for category, limit in zip(categories, condense):
             rows.append(make_row(category, lambda i: count_category(cube_dfs, category, i, 0, True, per)))
-    
+
             for i in range(limit):
                 rows.append(make_row(f"{category} ({i})", lambda j: count_category(cube_dfs, category, j, i, False, per)))
-    
+
             if limit != 0:
                 rows.append(make_row(f"{category} ({limit})+", lambda i: count_category(cube_dfs, category, i, limit, True, per)))
-    
+
         print(tb.tabulate(rows, headers, tablefmt="outline"))
     return (display_averages,)
 
